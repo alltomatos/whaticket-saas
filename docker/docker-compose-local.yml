@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: whaticket-backend
+    restart: always
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    environment:
+      - NODE_ENV=production
+      - BACKEND_URL=${BACKEND_URL:-http://localhost:8080}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - PROXY_PORT=8080
+      - PORT=8080
+      - DB_DIALECT=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-whaticket}
+      - DB_PASS=${DB_PASS:-whaticket}
+      - DB_NAME=${DB_NAME:-whaticket}
+      - JWT_SECRET=${JWT_SECRET:-changeme}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-changeme}
+      - REDIS_URI=redis://:${REDIS_PASS:-whaticket}@redis:6379
+      - REDIS_OPT_LIMITER_MAX=1
+      - REDIS_OPT_LIMITER_DURATION=3000
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - whaticket-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        - REACT_APP_BACKEND_URL=${BACKEND_URL:-http://localhost:8080}
+    container_name: whaticket-frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - whaticket-network
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: whaticket-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=${DB_USER:-whaticket}
+      - POSTGRES_PASSWORD=${DB_PASS:-whaticket}
+      - POSTGRES_DB=${DB_NAME:-whaticket}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - whaticket-network
+
+  redis:
+    image: redis:6-alpine
+    container_name: whaticket-redis
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASS:-whaticket}
+    volumes:
+      - redis_data:/data
+    networks:
+      - whaticket-network
+
+networks:
+  whaticket-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

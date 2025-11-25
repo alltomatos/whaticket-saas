@@ -1,0 +1,39 @@
+# Saindo do Node 18 para Node 20
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install system dependencies for Puppeteer and FFmpeg
+# Note: Puppeteer on Alpine needs specific flags or a custom executable path.
+# We install chromium and point Puppeteer to it if needed, or rely on the installed deps.
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    ffmpeg \
+    git \
+    python3 \
+    make \
+    g++
+
+# Tell Puppeteer to skip installing Chrome. We'll be using the installed package.
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
+COPY backend/package*.json ./
+
+RUN npm install
+
+COPY backend/ .
+
+RUN npm run build
+
+COPY docker/backend-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/backend-entrypoint.sh
+
+EXPOSE 8080
+
+ENTRYPOINT ["backend-entrypoint.sh"]
